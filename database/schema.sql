@@ -1,0 +1,76 @@
+-- Simulador Didático de Urna Eletrônica — schema (MySQL 8)
+CREATE DATABASE IF NOT EXISTS simulador_urna CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE simulador_urna;
+
+DROP TABLE IF EXISTS votos, candidatos, eleitores, partidos, eleicoes, usuarios;
+
+CREATE TABLE usuarios (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nome VARCHAR(100) NOT NULL,
+  email VARCHAR(120) NOT NULL UNIQUE,
+  senha_hash VARCHAR(255) NOT NULL,
+  perfil ENUM('ADMIN','MESARIO') NOT NULL DEFAULT 'ADMIN',
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE eleicoes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nome VARCHAR(120) NOT NULL,
+  descricao VARCHAR(255) NULL,
+  status ENUM('CRIADA','EM_ANDAMENTO','ENCERRADA') NOT NULL DEFAULT 'CRIADA',
+  data_inicio DATETIME NULL,
+  data_fim DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE partidos (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nome VARCHAR(100) NOT NULL,
+  sigla VARCHAR(10) NOT NULL UNIQUE,
+  numero TINYINT UNSIGNED NOT NULL UNIQUE,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE eleitores (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  identificador VARCHAR(50) NOT NULL UNIQUE,
+  nome VARCHAR(100) NOT NULL,
+  senha_hash VARCHAR(255) NOT NULL,
+  status ENUM('ATIVO','BLOQUEADO') NOT NULL DEFAULT 'ATIVO',
+  votou TINYINT(1) NOT NULL DEFAULT 0,
+  eleicao_id INT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_eleitor_eleicao FOREIGN KEY (eleicao_id) REFERENCES eleicoes(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE candidatos (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nome VARCHAR(100) NOT NULL,
+  numero VARCHAR(5) NOT NULL,
+  cargo VARCHAR(60) NOT NULL,
+  foto VARCHAR(255) NULL,
+  partido_id INT NOT NULL,
+  eleicao_id INT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_candidato_numero_eleicao (eleicao_id, numero),          -- RB08
+  CONSTRAINT fk_cand_partido FOREIGN KEY (partido_id) REFERENCES partidos(id),
+  CONSTRAINT fk_cand_eleicao FOREIGN KEY (eleicao_id) REFERENCES eleicoes(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE votos (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  eleicao_id INT NOT NULL,
+  eleitor_id INT NOT NULL,
+  candidato_id INT NULL,
+  tipo ENUM('VALIDO','BRANCO','NULO') NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_um_voto_por_eleitor (eleicao_id, eleitor_id),           -- RB04/RB11: reforço no banco
+  CONSTRAINT fk_voto_eleicao  FOREIGN KEY (eleicao_id)  REFERENCES eleicoes(id),
+  CONSTRAINT fk_voto_eleitor  FOREIGN KEY (eleitor_id)  REFERENCES eleitores(id),
+  CONSTRAINT fk_voto_candidato FOREIGN KEY (candidato_id) REFERENCES candidatos(id)
+) ENGINE=InnoDB;
